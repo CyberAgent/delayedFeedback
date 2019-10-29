@@ -89,6 +89,7 @@ def make_features_for_cvr_prediction(data):
     :param data: pd.DataFrame
     :return: np.array
     '''
+    bucketize_int_features(data)
     hashed_feature_matrix = [' '.join([str(hashing_trick_py(str(f))) for f in get_cross_features(r)]) for i, r in data.iterrows()]
     return np.array(hashed_feature_matrix).astype('O')
 
