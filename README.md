@@ -1,23 +1,20 @@
-# Delayed Feedback Problem
+# Implementation of Delayed Feedback Model (DFM) for Conversion Rate Prediction
+
+This method is introduced in [1].
+
+We implemented it in Cython to compare our method[2] to DFM.
 
 ## Important scripts
 
 - train_model.py
 
-Use to learn a selected model and get a average score.
-It includes the implementation of the estimation for FSIW.
-
-- setting.json
-
-In this json, the hyperparameters are written.
+Use to learn DFM and get a average score.
 
 - predicted_model/dfm.pyc
 
-The implementation code for DFM written in Cython
+The implementation code for DFM written in Cython.
 
 ## Requirement
-### Software except for Python
-- [vowpal wabbit](https://github.com/VowpalWabbit/vowpal_wabbit/wiki)
 
 ### Python Package
 - pandas 0.23.0
@@ -25,16 +22,12 @@ The implementation code for DFM written in Cython
 - sklearn 0.20.2
 - Cython 0.28.2
 - scipy 1.2.0
-- lightGBM 2.2.2
 
 ## Setup
-- make required directories
-`$ mkdir data model`
+Run `setup.sh`.
 
-- compile Cython
-`$ cd prediction_model`
-`$ python setup.py build_ext --inplace`
 
-- Run the script
-`$ cd ..`
-`$ python train_model.py`
+## Reference
+Chapelle, Olivier. “Modeling delayed feedback in display advertising.” KDD '14 (2014).
+
+Yasui Shota, Gota Morishita, Komei Fujita, Masashi Shibata "A Feedback Shift Correction in Display Advertising under the Delayed Feedback." WWW '20 (2020).
