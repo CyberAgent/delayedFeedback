@@ -28,6 +28,6 @@ Run `setup.sh`.
 
 
 ## Reference
-Chapelle, Olivier. “Modeling delayed feedback in display advertising.” KDD '14 (2014).
+[1] Chapelle, Olivier. “Modeling delayed feedback in display advertising.” KDD '14 (2014).
 
-Yasui Shota, Gota Morishita, Komei Fujita, Masashi Shibata "A Feedback Shift Correction in Display Advertising under the Delayed Feedback." WWW '20 (2020).
+[2] Yasui Shota, Gota Morishita, Komei Fujita, Masashi Shibata "A Feedback Shift Correction in Display Advertising under the Delayed Feedback." WWW '20 (2020).
