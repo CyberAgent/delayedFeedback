@@ -2,7 +2,7 @@
 
 This method is introduced in [1].
 
-We implemented it in Cython to compare our method[2] to DFM.
+We implemented it in Cython to compare how long it takes to train our method[2] and DFM.
 
 ## Important scripts
 
