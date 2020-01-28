@@ -7,9 +7,10 @@ from const import *
 from itertools import combinations, chain
 from scipy.sparse import csr_matrix
 import scipy.sparse as sp
+import os
 
 
-def read_raw_data():
+def read_raw_crite_data():
     '''
     read the data
     :return: pd.DataFrame
@@ -21,12 +22,12 @@ def read_raw_data():
     return raw_data
 
 
-def save_in_pickle_form(obj, path):
+def _save_in_pickle_form(obj, path):
     with open(path, "wb") as f:
         pickle.dump(obj, f)
 
 
-def load_pickle(path):
+def _load_pickle(path):
     with open(path, "rb") as f:
         obj = pickle.load(f)
     return obj
@@ -40,6 +41,8 @@ def check_cv_is_observed(ts_cv, ts_beginning_test_for_cvr):
     '''
     ts_cv[ts_cv > ts_beginning_test_for_cvr] = np.nan
 
+    return ts_cv
+
 
 def drop_ts_cols(data):
     '''
@@ -50,7 +53,7 @@ def drop_ts_cols(data):
     data.drop(['ts_click', 'ts_cv'], axis=1, inplace=True)
 
 
-def bucketize_int_features(data):
+def _bucketize_int_features(data):
     '''
     The integer columns in the data change to categorical ones
     :param data: pd.DataFrame
@@ -67,7 +70,7 @@ def bucketize_int_features(data):
             data.loc[:, feature] = col
 
 
-def get_cross_features(row):
+def _get_cross_features(row):
     '''
     the row in the data is converted to one with cross features
     :param row:
@@ -85,12 +88,12 @@ def get_cross_features(row):
 
 def make_features_for_cvr_prediction(data):
     '''
-    create the features matrix in csr_matrix form
+    create the features matrix 
     :param data: pd.DataFrame
     :return: np.array
     '''
-    bucketize_int_features(data)
-    hashed_feature_matrix = [' '.join([str(hashing_trick_py(str(f))) for f in get_cross_features(r)]) for i, r in data.iterrows()]
+    _bucketize_int_features(data)
+    hashed_feature_matrix = [' '.join([str(hashing_trick_py(str(f))) for f in _get_cross_features(r)]) for i, r in data.iterrows()]
     return np.array(hashed_feature_matrix).astype('O')
 
 def to_csr_matrix(hashed_feature):
@@ -196,57 +199,62 @@ def hashing_trick_py(str):
 
 def save_hashed_feature(hash_data):
     path = SETTING['hashed_data_path_1']
-    save_in_pickle_form(hash_data[:int(hash_data.shape[0]/2)], path)
+    _save_in_pickle_form(hash_data[:int(hash_data.shape[0]/2)], path)
     path = SETTING['hashed_data_path_2']
-    save_in_pickle_form(hash_data[int(hash_data.shape[0]/2):], path)
-
+    _save_in_pickle_form(hash_data[int(hash_data.shape[0]/2):], path)
 
 def load_hashed_feature():
     path = SETTING['hashed_data_path_1']
-    hashed_feature_1 = load_pickle(path)
+    hashed_feature_1 = _load_pickle(path)
     path = SETTING['hashed_data_path_2']
-    hashed_feature_2 = load_pickle(path)
+    hashed_feature_2 = _load_pickle(path)
     return np.concatenate((hashed_feature_1, hashed_feature_2))
 
+def convert_feature(feature):
+    data_list = []
+    position_list = [0]
+    for x in feature:
+        data_list.extend(x)
+        position_offset = position_list[-1]
+        position_list.append(position_offset + len(x))
 
-def save_train_data_for_vowpal_wabbit(feature, is_cv, weight, day):
-    print("create vowpal wabbit data")
-    data_for_cvr_prediction = np.where(is_cv, '1', '-1').astype('O') + ' ' \
-            + weight.astype(str).astype('O') + \
-            ' | ' + feature + '\n'
-    print("DONE")
-    print("Join the data")
-    data_for_cvr_prediction = ' '.join([x for x in data_for_cvr_prediction])
-    print("DONE")
+    data = np.array(data_list, dtype=np.uint32)
+    positions = np.array(position_list, dtype=np.intc)
+    return data, positions
 
-    path = SETTING['train_output_path']
-    print("Saving the data: " + str(path))
-    with open(path + 'train_for_cvr' + str(day) + '.txt', "w") as f:
-        f.write(data_for_cvr_prediction)
-    print("DONE")
-
-
-def save_test_data_for_vowpal_wabbit(feature, is_cv, day):
-    print("create vowpal wabbit data")
-    test_data = np.where(is_cv, '1', '-1').astype('O') + ' | ' + feature +'\n'
-    print("Done")
-    print("saving the data")
-    path = SETTING['test_output_path']
-    with open(path + 'test_for_cvr' + str(day) + '.txt', "w") as f:
-        f.write(' '.join([x for x in test_data]))
-    print("done")
-
-
-if __name__=='__main__':
-    # preprocessing for CVR prediction
-    print('read  the data')
-    data = read_raw_data()
+def narrow_data(data):
     ts_start = SECONDS_PER_DAY * 32
     ts_end   = SECONDS_PER_DAY * 60
-    data = data[(data.ts_click >= ts_start) & (data.ts_click < ts_end)]
-    ts_click = data.ts_click
-    ts_cv = data.ts_cv
-    drop_ts_cols(data)
-    hashed_feature = make_features_for_cvr_prediction(data)
-    save_hashed_feature(hashed_feature)
+    used_index = (data['ts_click'] >= ts_start) & (data['ts_click'] < ts_end)
+    hashed_X = load_hashed_feature()
+    return hashed_X, data['ts_click'][used_index].values, data['ts_cv'][used_index].values
 
+def create_data(day, hashed_X, ts_click, ts_cv, oracle=False):
+    ts_beginning_test_for_cvr   = SECONDS_PER_DAY * (day-1)
+    ts_starting_train_for_cvr   = ts_beginning_test_for_cvr - 21 * SECONDS_PER_DAY
+    ts_end_test_for_cvr         = ts_beginning_test_for_cvr + 1 * SECONDS_PER_DAY
+
+    is_in_period = (ts_click >= ts_starting_train_for_cvr) & (ts_click < ts_end_test_for_cvr)
+    tmp_ts_click = ts_click[is_in_period]
+    tmp_ts_cv    = ts_cv[is_in_period]
+    tmp_hashed_X = hashed_X[is_in_period]
+
+    is_train = tmp_ts_click < ts_beginning_test_for_cvr
+    is_test = ~is_train
+
+    # create labels of the observed conversion
+    if not oracle:
+        tmp_ts_cv[is_train] = check_cv_is_observed(tmp_ts_cv[is_train], ts_beginning_test_for_cvr)
+    train_y = ~np.isnan(tmp_ts_cv[is_train])
+    test_y = ~np.isnan(tmp_ts_cv[is_test])
+
+    # convert the data into list of integers
+    tmp_hashed_X = list(map(lambda x :list(map(int, x.split())), tmp_hashed_X))
+
+    timestamps = np.where(train_y, tmp_ts_cv[is_train] - tmp_ts_click[is_train],
+            ts_beginning_test_for_cvr - tmp_ts_click[is_train]).astype(int)
+    train_X = np.array(tmp_hashed_X)[is_train]
+    test_X = np.array(tmp_hashed_X)[is_test]
+    train_X, train_positions = convert_feature(train_X)
+    test_X, test_positions = convert_feature(test_X)
+    return train_X, train_positions, train_y, test_X, test_positions, test_y, timestamps
