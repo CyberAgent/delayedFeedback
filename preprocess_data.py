@@ -18,19 +18,8 @@ def read_raw_crite_data():
     header = ['ts_click', 'ts_cv', 'int1', 'int2', 'int3', 'int4',
               'int5', 'int6', 'int7', 'int8', 'cat1', 'cat2', 'cat3',
               'cat4', 'cat5', 'cat6', 'cat7', 'cat8', 'cat9']
-    raw_data = pd.read_table(SETTING['data_path'], names=header)
+    raw_data = pd.read_table("./data/data.txt", names=header)
     return raw_data
-
-
-def _save_in_pickle_form(obj, path):
-    with open(path, "wb") as f:
-        pickle.dump(obj, f)
-
-
-def _load_pickle(path):
-    with open(path, "rb") as f:
-        obj = pickle.load(f)
-    return obj
 
 
 def check_cv_is_observed(ts_cv, ts_beginning_test_for_cvr):
@@ -96,11 +85,13 @@ def make_features_for_cvr_prediction(data):
     hashed_feature_matrix = [' '.join([str(hashing_trick_py(str(f))) for f in _get_cross_features(r)]) for i, r in data.iterrows()]
     return np.array(hashed_feature_matrix).astype('O')
 
+
 def to_csr_matrix(hashed_feature):
     row = np.repeat(range(len(hashed_feature)), [len(r.split(" ")) for r in hashed_feature])
     col = np.array(" ".join(hashed_feature).split(" "), dtype=int)
     data = [1] * len(col)
     return csr_matrix((data, (row, col)))
+
 
 # hashing trick
 if (sys.version_info > (3, 0)):
@@ -197,19 +188,6 @@ def hashing_trick_py(str):
         return value % vector_length
 
 
-def save_hashed_feature(hash_data):
-    path = SETTING['hashed_data_path_1']
-    _save_in_pickle_form(hash_data[:int(hash_data.shape[0]/2)], path)
-    path = SETTING['hashed_data_path_2']
-    _save_in_pickle_form(hash_data[int(hash_data.shape[0]/2):], path)
-
-def load_hashed_feature():
-    path = SETTING['hashed_data_path_1']
-    hashed_feature_1 = _load_pickle(path)
-    path = SETTING['hashed_data_path_2']
-    hashed_feature_2 = _load_pickle(path)
-    return np.concatenate((hashed_feature_1, hashed_feature_2))
-
 def convert_feature(feature):
     data_list = []
     position_list = [0]
@@ -222,12 +200,6 @@ def convert_feature(feature):
     positions = np.array(position_list, dtype=np.intc)
     return data, positions
 
-def narrow_data(data):
-    ts_start = SECONDS_PER_DAY * 32
-    ts_end   = SECONDS_PER_DAY * 60
-    used_index = (data['ts_click'] >= ts_start) & (data['ts_click'] < ts_end)
-    hashed_X = load_hashed_feature()
-    return hashed_X, data['ts_click'][used_index].values, data['ts_cv'][used_index].values
 
 def create_data(day, hashed_X, ts_click, ts_cv, oracle=False):
     ts_beginning_test_for_cvr   = SECONDS_PER_DAY * (day-1)
@@ -243,8 +215,7 @@ def create_data(day, hashed_X, ts_click, ts_cv, oracle=False):
     is_test = ~is_train
 
     # create labels of the observed conversion
-    if not oracle:
-        tmp_ts_cv[is_train] = check_cv_is_observed(tmp_ts_cv[is_train], ts_beginning_test_for_cvr)
+    tmp_ts_cv[is_train] = check_cv_is_observed(tmp_ts_cv[is_train], ts_beginning_test_for_cvr)
     train_y = ~np.isnan(tmp_ts_cv[is_train])
     test_y = ~np.isnan(tmp_ts_cv[is_test])
 

@@ -30,10 +30,11 @@ def train_dfm(X, positions, y, timestamps, num_features, args={}, debug=False):
 
     return model
 
-def main(model_name, debug=False, oracle=False):
+def main(model_name, debug=False)
     print("Reading Data")
     data = read_raw_crite_data()
-    hashed_data, ts_click, ts_cv = narrow_data(data)
+    hashed_data = make_features_for_cvr_prediction(data)
+    
     print("Finish Reading Data")
     if debug:
         print("Debug True")
@@ -43,12 +44,9 @@ def main(model_name, debug=False, oracle=False):
 
     for day in range(54, 61):
         print(f"Start Learning Day{day}")
-        train_X, train_positions, train_y, test_X, test_positions, test_y, timestamps = create_data(day, hashed_data, ts_click, ts_cv, oracle)
+        train_X, train_positions, train_y, test_X, test_positions, test_y, timestamps = create_data(day, hashed_data, ts_click, ts_cv)
 
-        if model_name == "dfm":
-            model = train_dfm(train_X, train_positions, train_y, timestamps, 2**24, {}, debug)
-        else:
-            raise("invalid model name: {model}. Implemented models are dfm")
+        dfm = train_dfm(train_X, train_positions, train_y, timestamps, 2**24, {}, debug)
         scr = model.score(test_X, test_positions, test_y)
         print(f"Finish Learning Day{day}")
         print(f"Score Day{day}: {scr}")
@@ -56,5 +54,5 @@ def main(model_name, debug=False, oracle=False):
     return model
 
 if __name__=='__main__':
-    dfm_model = main("dfm", debug=False, oracle=False)
-    # dfm_model = main("dfm", debug=False, oracle=False)
+    import ipdb; ipdb.set_trace()
+    dfm_model = main("dfm", debug=False)
